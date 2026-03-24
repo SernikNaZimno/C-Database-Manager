@@ -22,11 +22,11 @@ private:
 
     // Elementy UI
     QComboBox* dbTypeSelector;
-    QPushButton* connectBtn;
+    QPushButton* openBtn;   // Przycisk do otwierania istniejącego pliku
+    QPushButton* createBtn; // Przycisk do tworzenia nowego pliku
     QTextEdit* queryInput;
     QPushButton* executeBtn;
     QTableView* resultView;
-
     QTreeWidget* dbExplorer;
 
     void refrehTableList();
@@ -37,6 +37,10 @@ private slots:
     void refreshTableList() const;
 
     void handleExecuteQuery();
+
+    void handleOpenDatabase();   // Nowy slot dla otwierania
+
+    void handleCreateDatabase(); // Nowy slot dla tworzenia
 
 public:
     MainWindow(QWidget *parent = nullptr);

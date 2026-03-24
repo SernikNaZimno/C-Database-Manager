@@ -8,23 +8,25 @@
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     auto* centralWidget = new QWidget(this);
-    // Ustawiamy główny layout jako poziomy (HBox), aby objął całego splittera
     auto* mainLayout = new QHBoxLayout(centralWidget);
 
     // --- LEWA STRONA (Eksplorator) ---
     dbExplorer = new QTreeWidget();
     dbExplorer->setHeaderLabel("Tabele w bazie");
-    dbExplorer->setMinimumWidth(200); // Żeby nie był na starcie zbyt wąski
+    dbExplorer->setMinimumWidth(200);
 
     // --- PRAWA STRONA (Panel operacyjny) ---
     auto* rightPanel = new QWidget();
-    auto* rightLayout = new QVBoxLayout(rightPanel); // Stary layout przenosimy tutaj
+    auto* rightLayout = new QVBoxLayout(rightPanel);
 
     dbTypeSelector = new QComboBox();
     dbTypeSelector->addItem("SQLite");
     dbTypeSelector->addItem("MySQL (Brak implementacji)");
 
-    connectBtn = new QPushButton("Połącz / Utwórz Bazę");
+    // Rozdzielone przyciski
+    openBtn = new QPushButton("Otwórz istniejącą bazę");
+    createBtn = new QPushButton("Utwórz nową bazę");
+
     queryInput = new QTextEdit();
     queryInput->setPlaceholderText("Wpisz komendę SQL tutaj...");
     executeBtn = new QPushButton("Wykonaj SQL");
@@ -33,26 +35,24 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     queryModel = new QSqlQueryModel(this);
     resultView->setModel(queryModel);
 
-    // Pakujemy wszystkie Twoje dotychczasowe elementy do prawego panelu
+    // Dodanie elementów do prawego layoutu
     rightLayout->addWidget(dbTypeSelector);
-    rightLayout->addWidget(connectBtn);
+    rightLayout->addWidget(openBtn);    // Dodano
+    rightLayout->addWidget(createBtn);  // Dodano
     rightLayout->addWidget(queryInput);
     rightLayout->addWidget(executeBtn);
     rightLayout->addWidget(resultView);
 
-    // --- ŁĄCZENIE (Splitter) ---
-    // QSplitter to specjalny kontener, który daje użytkownikowi suwak między elementami
     auto* splitter = new QSplitter(Qt::Horizontal);
     splitter->addWidget(dbExplorer);
     splitter->addWidget(rightPanel);
-
-    // Dodajemy splitter do głównego widoku
     mainLayout->addWidget(splitter);
 
     setCentralWidget(centralWidget);
-    resize(900, 600); // Trochę poszerzyłem okno na start
+    resize(1000, 650);
 
-    connect(connectBtn, &QPushButton::clicked, this, &MainWindow::handleConnect);
+    connect(openBtn, &QPushButton::clicked, this, &MainWindow::handleOpenDatabase);
+    connect(createBtn, &QPushButton::clicked, this, &MainWindow::handleCreateDatabase);
     connect(executeBtn, &QPushButton::clicked, this, &MainWindow::handleExecuteQuery);
 
     setWindowIcon(QIcon(":/icon.ico"));
@@ -103,4 +103,37 @@ void MainWindow::handleExecuteQuery() {
     QSqlQuery result = dbBackend->executeRawCommand(sql);
 
     queryModel->setQuery(std::move(result));
+}
+
+void MainWindow::handleOpenDatabase() {
+    if (dbTypeSelector->currentText() == "SQLite") {
+        dbBackend = std::make_unique<SQLiteBackend>();
+
+        // getOpenFileName wymusza wybór pliku, który JUŻ ISTNIEJE
+        QString fileName = QFileDialog::getOpenFileName(this, "Otwórz bazę SQLite", "", "Bazy danych (*.db *.sqlite);;Wszystkie pliki (*.*)");
+
+        if (!fileName.isEmpty()) {
+            if (dbBackend->connectToDatabase(fileName)) {
+                QMessageBox::information(this, "Sukces", "Otwarto istniejącą bazę!");
+                refreshTableList();
+            }
+        }
+    }
+}
+
+void MainWindow::handleCreateDatabase() {
+    if (dbTypeSelector->currentText() == "SQLite") {
+        dbBackend = std::make_unique<SQLiteBackend>();
+
+        // getSaveFileName pozwala wpisać nazwę NOWEGO pliku
+        QString fileName = QFileDialog::getSaveFileName(this, "Stwórz nową bazę SQLite", "", "Bazy danych (*.db *.sqlite)");
+
+        if (!fileName.isEmpty()) {
+            // W SQLite połączenie z nieistniejącym plikiem automatycznie go tworzy
+            if (dbBackend->connectToDatabase(fileName)) {
+                QMessageBox::information(this, "Sukces", "Utworzono nową bazę danych!");
+                refreshTableList();
+            }
+        }
+    }
 }
